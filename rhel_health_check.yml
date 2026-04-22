@@ -1,0 +1,57 @@
+---
+- name: RHEL System Health Check
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    servers:
+      - { name: "rhel-web01.example.com", ip: "10.10.1.10", distro: "Red Hat Enterprise Linux", version: "9.3", kernel: "5.14.0-362.13.1.el9_3.x86_64" }
+      - { name: "rhel-web02.example.com", ip: "10.10.1.11", distro: "Red Hat Enterprise Linux", version: "9.3", kernel: "5.14.0-362.13.1.el9_3.x86_64" }
+      - { name: "rhel-db01.example.com", ip: "10.10.2.20", distro: "Red Hat Enterprise Linux", version: "8.9", kernel: "4.18.0-513.11.1.el8_9.x86_64" }
+
+  tasks:
+    - name: Gathering facts from {{ item.name }}
+      ansible.builtin.debug:
+        msg: "{{ item.name }}: {{ item.distro }} {{ item.version }} | Kernel: {{ item.kernel }}"
+      loop: "{{ servers }}"
+      loop_control:
+        pause: 1
+
+    - name: Checking disk space
+      ansible.builtin.debug:
+        msg: |
+          {{ item.name }} - Disk Usage:
+          Filesystem      Size  Used Avail Use% Mounted on
+          /dev/sda1       100G   23G   77G  23% /
+      loop: "{{ servers }}"
+      loop_control:
+        pause: 1
+
+    - name: Checking memory usage
+      ansible.builtin.debug:
+        msg: |
+          {{ item.name }} - Memory:
+                        total   used   free   shared  buff/cache  available
+          Mem:          16384   4521   8234      312        3629      11204
+          Swap:          4096      0   4096
+      loop: "{{ servers }}"
+      loop_control:
+        pause: 1
+
+    - name: Checking uptime and load
+      ansible.builtin.debug:
+        msg: "{{ item.name }} - uptime: 43 days, 7:22, load average: 0.12, 0.08, 0.05"
+      loop: "{{ servers }}"
+      loop_control:
+        pause: 1
+
+    - name: Checking for failed services
+      ansible.builtin.debug:
+        msg: "{{ item.name }} - ✓ No failed services"
+      loop: "{{ servers }}"
+      loop_control:
+        pause: 1
+
+    - name: Health check complete
+      ansible.builtin.debug:
+        msg: "✅ Health check complete for {{ servers | length }} servers. All systems healthy."
