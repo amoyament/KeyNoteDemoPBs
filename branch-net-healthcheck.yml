@@ -1,0 +1,44 @@
+---
+- name: Branch Network Health Check
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    branch_id: "{{ branch_id | default('Branch 142') }}"
+    checks:
+      - { name: "DNS Resolution", status: "✓ Passed" }
+      - { name: "DHCP Services", status: "✓ Passed" }
+      - { name: "Core Switch Connectivity", status: "✓ Passed" }
+      - { name: "WAN Link", status: "✓ Passed" }
+      - { name: "Firewall Rules", status: "✗ FAILED" }
+
+  tasks:
+    - name: Initiating network health check for {{ branch_id }}
+      ansible.builtin.debug:
+        msg: "Starting diagnostics for {{ branch_id }}..."
+      changed_when: true
+
+    - name: Running connectivity tests
+      ansible.builtin.debug:
+        msg: "{{ item.name }}: {{ item.status }}"
+      loop: "{{ checks }}"
+      loop_control:
+        pause: 2
+
+    - name: Analyzing firewall configuration
+      ansible.builtin.pause:
+        seconds: 3
+        prompt: "Inspecting firewall ruleset..."
+
+    - name: Firewall misconfiguration detected
+      ansible.builtin.fail:
+        msg: |
+          ❌ FIREWALL MISCONFIGURATION DETECTED
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          Branch: {{ branch_id }}
+          Issue: Outbound rule blocking TCP/443 to core banking services
+          Rule ID: FW-RULE-2847
+          Affected Subnet: 10.{{ 99 | random }}.{{ 255 | random }}.0/24
+          
+          Recommendation: Apply firewall remediation playbook
+          Reference: https://github.example.com/network-ops/firewall-fixes
