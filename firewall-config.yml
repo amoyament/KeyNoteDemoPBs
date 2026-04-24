@@ -1,0 +1,46 @@
+---
+- name: Firewall Rule Remediation - Single Branch
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    branch_id: "{{ branch_id | default('Branch 142') }}"
+    rule_id: "FW-RULE-2847"
+
+  tasks:
+    - name: Authenticating with firewall management plane
+      ansible.builtin.debug:
+        msg: "Connecting to fw-mgmt.example.com..."
+      changed_when: true
+
+    - name: Pause for authentication
+      ansible.builtin.pause:
+        seconds: 2
+
+    - name: Analyzing misconfigured rule {{ rule_id }}
+      ansible.builtin.debug:
+        msg: |
+          Current Rule:
+            Action: DENY
+            Source: 10.0.0.0/8
+            Destination: core-banking.example.com
+            Port: TCP/443
+            
+          Corrected Rule:
+            Action: ALLOW
+            Source: 10.0.0.0/8
+            Destination: core-banking.example.com
+            Port: TCP/443
+
+    - name: Applying fix to {{ branch_id }}
+      ansible.builtin.debug:
+        msg: "Updating firewall rule on {{ branch_id }}..."
+      changed_when: true
+
+    - name: Pause for rule application
+      ansible.builtin.pause:
+        seconds: 3
+
+    - name: Verifying connectivity restored
+      ansible.builtin.debug:
+        msg: "{{ branch_id }} - TCP/443 to core-banking.example.com: ✓ CONNECTED"
