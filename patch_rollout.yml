@@ -1,5 +1,5 @@
 ---
-- name: CVE-2026-3847 Patch Rollout
+- name: CVE-2026-3847 Emergency Patch Rollout
   hosts: localhost
   connection: local
   gather_facts: false
@@ -17,13 +17,13 @@
   tasks:
     - name: Starting {{ cve_id }} patch rollout
       ansible.builtin.debug:
-        msg: |
-          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-          CVE: {{ cve_id }}
-          Severity: CRITICAL
-          Patch: {{ patch_package }}
-          Targets: {{ servers | length }} servers
-          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        msg:
+          - "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          - "CVE: {{ cve_id }}"
+          - "Severity: CRITICAL"
+          - "Patch: {{ patch_package }}"
+          - "Targets: {{ servers | length }} servers"
+          - "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
       changed_when: true
 
     - name: Pre-patch snapshot
@@ -65,10 +65,10 @@
 
     - name: Patch rollout complete
       ansible.builtin.debug:
-        msg: |
-          ✅ PATCH ROLLOUT COMPLETE
-          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-          CVE: {{ cve_id }}
-          Servers patched: {{ servers | length }}
-          Package: {{ patch_package }}
-          Status: All systems secured
+        msg:
+          - "✅ PATCH ROLLOUT COMPLETE"
+          - "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          - "CVE: {{ cve_id }}"
+          - "Servers patched: {{ servers | length }}"
+          - "Package: {{ patch_package }}"
+          - "Status: All systems secured"
