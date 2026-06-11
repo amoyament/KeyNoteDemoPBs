@@ -1,0 +1,63 @@
+---
+- name: Backup Switch Configurations
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    switches:
+      - { name: "core-sw01", model: "Cisco Catalyst 9300", site: "DC-East" }
+      - { name: "core-sw02", model: "Cisco Catalyst 9300", site: "DC-East" }
+      - { name: "dist-sw01", model: "Arista 7050X3", site: "DC-West" }
+      - { name: "dist-sw02", model: "Arista 7050X3", site: "DC-West" }
+      - { name: "access-sw01", model: "Cisco Catalyst 9200", site: "Branch-HQ" }
+
+  tasks:
+    - name: Connecting to network devices
+      ansible.builtin.debug:
+        msg: "Establishing SSH sessions to {{ switches | length }} switches..."
+      changed_when: true
+
+    - name: Collecting running configurations
+      ansible.builtin.debug:
+        msg: "{{ item.name }} ({{ item.model }}): Fetching running-config... 2,847 lines captured"
+      loop: "{{ switches }}"
+      loop_control:
+        pause: 2
+      changed_when: true
+
+    - name: Comparing with last known good config
+      ansible.builtin.debug:
+        msg: "{{ item.name }}: {{ (item.name == 'dist-sw01') | ternary('3 changes detected since last backup', 'No changes detected') }}"
+      loop: "{{ switches }}"
+      loop_control:
+        pause: 1
+
+    - name: Change detail for dist-sw01
+      ansible.builtin.debug:
+        msg:
+          - "dist-sw01 config diff:"
+          - "  + interface Ethernet47"
+          - "  +   description UPLINK-TO-SPINE"
+          - "  +   mtu 9214"
+          - "  - interface Ethernet47"
+          - "  -   shutdown"
+      when: true
+
+    - name: Committing configs to Git
+      ansible.builtin.debug:
+        msg: "{{ item.name }}: Pushed to git@gitlab.example.com:network-ops/switch-configs.git (branch: main)"
+      loop: "{{ switches }}"
+      loop_control:
+        pause: 1
+      changed_when: true
+
+    - name: Backup complete
+      ansible.builtin.debug:
+        msg:
+          - "============================================"
+          - "  SWITCH CONFIG BACKUP COMPLETE"
+          - "  Devices backed up: {{ switches | length }}"
+          - "  Configs with changes: 1"
+          - "  Git commit: a7f3c2e"
+          - "  Repository: network-ops/switch-configs"
+          - "============================================"

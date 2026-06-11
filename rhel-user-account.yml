@@ -1,0 +1,85 @@
+---
+- name: RHEL User Account Request
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    username: "jsmith"
+    full_name: "Jane Smith"
+    department: "Engineering"
+    access_level: "developer"
+    targets:
+      - "dev01.example.com"
+      - "dev02.example.com"
+      - "staging01.example.com"
+
+  tasks:
+    - name: Processing user account request
+      ansible.builtin.debug:
+        msg:
+          - "============================================"
+          - "  USER ACCOUNT PROVISIONING"
+          - "  Username: {{ username }}"
+          - "  Full Name: {{ full_name }}"
+          - "  Department: {{ department }}"
+          - "  Access Level: {{ access_level }}"
+          - "============================================"
+      changed_when: true
+
+    - name: Validating against Active Directory
+      ansible.builtin.debug:
+        msg: "AD lookup: {{ full_name }} ({{ username }}@example.com) verified in OU=Engineering"
+
+    - name: Checking account does not already exist
+      ansible.builtin.debug:
+        msg: "{{ item }}: User '{{ username }}' does not exist. Proceeding."
+      loop: "{{ targets }}"
+      loop_control:
+        pause: 1
+
+    - name: Creating user account
+      ansible.builtin.debug:
+        msg: "{{ item }}: Created user '{{ username }}' (uid=1042, gid=1000)"
+      loop: "{{ targets }}"
+      loop_control:
+        pause: 1
+      changed_when: true
+
+    - name: Configuring group memberships
+      ansible.builtin.debug:
+        msg: "{{ item }}: Added {{ username }} to groups: developers, docker, sudo"
+      loop: "{{ targets }}"
+      loop_control:
+        pause: 1
+      changed_when: true
+
+    - name: Setting up SSH authorized keys
+      ansible.builtin.debug:
+        msg: "{{ item }}: Deployed SSH public key from LDAP to /home/{{ username }}/.ssh/authorized_keys"
+      loop: "{{ targets }}"
+      loop_control:
+        pause: 1
+      changed_when: true
+
+    - name: Applying sudo policies
+      ansible.builtin.debug:
+        msg: "{{ item }}: Sudoers rule added (developer profile, no NOPASSWD)"
+      loop: "{{ targets }}"
+      changed_when: true
+
+    - name: Sending welcome notification
+      ansible.builtin.debug:
+        msg: "Email sent to {{ username }}@example.com with access instructions"
+      changed_when: true
+
+    - name: Account provisioning complete
+      ansible.builtin.debug:
+        msg:
+          - "============================================"
+          - "  ACCOUNT CREATED SUCCESSFULLY"
+          - "  Username: {{ username }}"
+          - "  Servers: {{ targets | length }}"
+          - "  Groups: developers, docker, sudo"
+          - "  SSH: Key-based authentication configured"
+          - "  Ticket: REQ-{{ 999999 | random }} closed"
+          - "============================================"

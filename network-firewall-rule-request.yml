@@ -1,0 +1,73 @@
+---
+- name: Firewall Rule Change Request
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    request_id: "FW-REQ-{{ 99999 | random }}"
+    rule:
+      action: "ALLOW"
+      source: "10.50.0.0/16"
+      destination: "172.16.100.0/24"
+      port: "TCP/8443"
+      description: "App tier to API gateway"
+
+  tasks:
+    - name: Submitting firewall rule change request
+      ansible.builtin.debug:
+        msg:
+          - "============================================"
+          - "  FIREWALL RULE CHANGE REQUEST"
+          - "  Request ID: {{ request_id }}"
+          - "============================================"
+      changed_when: true
+
+    - name: Validating rule parameters
+      ansible.builtin.debug:
+        msg:
+          - "Proposed rule:"
+          - "  Action: {{ rule.action }}"
+          - "  Source: {{ rule.source }}"
+          - "  Destination: {{ rule.destination }}"
+          - "  Port: {{ rule.port }}"
+          - "  Description: {{ rule.description }}"
+
+    - name: Checking for conflicting rules
+      ansible.builtin.debug:
+        msg: "No conflicting rules found in current ruleset (1,247 rules scanned)"
+
+    - name: Running compliance check
+      ansible.builtin.debug:
+        msg:
+          - "Compliance checks:"
+          - "  PCI-DSS scope: Not in scope"
+          - "  SOC2 controls: Passed"
+          - "  Internal policy: Passed"
+      changed_when: true
+
+    - name: Submitting for approval
+      ansible.builtin.pause:
+        seconds: 2
+
+    - name: Creating change ticket
+      ansible.builtin.debug:
+        msg: "ServiceNow ticket CHG-{{ 9999999 | random }} created"
+      changed_when: true
+
+    - name: Scheduling implementation window
+      ansible.builtin.debug:
+        msg:
+          - "Approval workflow initiated:"
+          - "  Approver 1: network-security@example.com (pending)"
+          - "  Approver 2: compliance-team@example.com (pending)"
+          - "  Scheduled window: Next maintenance window (Sunday 02:00-06:00 EST)"
+
+    - name: Request submitted
+      ansible.builtin.debug:
+        msg:
+          - "============================================"
+          - "  REQUEST SUBMITTED SUCCESSFULLY"
+          - "  Request ID: {{ request_id }}"
+          - "  Status: Pending Approval"
+          - "  Track at: https://snow.example.com/{{ request_id }}"
+          - "============================================"

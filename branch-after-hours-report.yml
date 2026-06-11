@@ -1,0 +1,70 @@
+---
+- name: After Hours Access Report
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    report_date: "{{ '%Y-%m-%d' | strftime }}"
+    branches:
+      - { id: "Branch 101", location: "Chicago, IL", entries: 3 }
+      - { id: "Branch 215", location: "Dallas, TX", entries: 1 }
+      - { id: "Branch 078", location: "Miami, FL", entries: 7 }
+      - { id: "Branch 340", location: "Seattle, WA", entries: 0 }
+    access_events:
+      - { branch: "Branch 101", badge: "EMP-4421", name: "J. Martinez", time: "21:14", area: "Server Room" }
+      - { branch: "Branch 101", badge: "EMP-5589", name: "R. Chen", time: "22:30", area: "Main Lobby" }
+      - { branch: "Branch 101", badge: "EMP-5589", name: "R. Chen", time: "23:45", area: "Server Room" }
+      - { branch: "Branch 215", badge: "EMP-7102", name: "A. Patel", time: "20:05", area: "Vault Access Corridor" }
+      - { branch: "Branch 078", badge: "CTR-0091", name: "CleanCo Services", time: "19:00", area: "Main Lobby" }
+      - { branch: "Branch 078", badge: "CTR-0091", name: "CleanCo Services", time: "19:02", area: "Break Room" }
+      - { branch: "Branch 078", badge: "CTR-0091", name: "CleanCo Services", time: "19:15", area: "Offices - 2nd Floor" }
+      - { branch: "Branch 078", badge: "CTR-0091", name: "CleanCo Services", time: "20:30", area: "Offices - 3rd Floor" }
+      - { branch: "Branch 078", badge: "EMP-3318", name: "K. Nguyen", time: "21:00", area: "IT Closet" }
+      - { branch: "Branch 078", badge: "EMP-3318", name: "K. Nguyen", time: "21:42", area: "Server Room" }
+      - { branch: "Branch 078", badge: "EMP-3318", name: "K. Nguyen", time: "22:10", area: "Main Lobby" }
+
+  tasks:
+    - name: Generating after-hours access report
+      ansible.builtin.debug:
+        msg:
+          - "============================================"
+          - "  AFTER HOURS ACCESS REPORT"
+          - "  Report Date: {{ report_date }}"
+          - "  Operating Hours: 06:00 - 18:00 EST"
+          - "============================================"
+      changed_when: true
+
+    - name: Querying badge reader systems
+      ansible.builtin.debug:
+        msg: "Connecting to badge-reader-api.example.com... authenticated"
+      changed_when: true
+
+    - name: Collecting access logs
+      ansible.builtin.debug:
+        msg: "{{ item.id }} ({{ item.location }}): {{ item.entries }} after-hours entries"
+      loop: "{{ branches }}"
+      loop_control:
+        pause: 1
+
+    - name: Detailed access events
+      ansible.builtin.debug:
+        msg: "  {{ item.time }} | {{ item.branch }} | {{ item.badge }} ({{ item.name }}) | {{ item.area }}"
+      loop: "{{ access_events }}"
+
+    - name: Flagging anomalous access patterns
+      ansible.builtin.debug:
+        msg:
+          - "WARNING: Contractor badge CTR-0091 accessed 4 areas at Branch 078"
+          - "WARNING: Badge EMP-5589 accessed Server Room at 23:45 at Branch 101"
+      changed_when: true
+
+    - name: Report generation complete
+      ansible.builtin.debug:
+        msg:
+          - "============================================"
+          - "  SUMMARY"
+          - "  Total branches scanned: {{ branches | length }}"
+          - "  Total after-hours entries: 11"
+          - "  Anomalies flagged: 2"
+          - "  Report saved to: /reports/after-hours/{{ report_date }}.pdf"
+          - "============================================"

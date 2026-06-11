@@ -1,0 +1,86 @@
+---
+- name: RHEL Patch Servers (Maintenance Window)
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    servers:
+      - { name: "web01.example.com", role: "Web Server", current_kernel: "5.14.0-362.8.1" }
+      - { name: "web02.example.com", role: "Web Server", current_kernel: "5.14.0-362.8.1" }
+      - { name: "app01.example.com", role: "App Server", current_kernel: "5.14.0-362.8.1" }
+      - { name: "db01.example.com", role: "Database", current_kernel: "5.14.0-362.8.1" }
+    target_kernel: "5.14.0-362.24.1.el9_3"
+    errata_count: 47
+
+  tasks:
+    - name: Maintenance window check
+      ansible.builtin.debug:
+        msg:
+          - "============================================"
+          - "  SCHEDULED PATCH MAINTENANCE"
+          - "  Window: Sunday 02:00-06:00 EST"
+          - "  Servers: {{ servers | length }}"
+          - "  Errata available: {{ errata_count }}"
+          - "============================================"
+      changed_when: true
+
+    - name: Verifying maintenance window approval
+      ansible.builtin.debug:
+        msg: "Change ticket CHG-4420198: APPROVED by ops-manager@example.com"
+
+    - name: Creating pre-patch snapshots
+      ansible.builtin.debug:
+        msg: "{{ item.name }}: Snapshot snap-{{ 99999999 | random }} created"
+      loop: "{{ servers }}"
+      loop_control:
+        pause: 1
+      changed_when: true
+
+    - name: Stopping application services
+      ansible.builtin.debug:
+        msg: "{{ item.name }}: Draining connections and stopping services..."
+      loop: "{{ servers }}"
+      loop_control:
+        pause: 1
+      changed_when: true
+
+    - name: Applying security errata
+      ansible.builtin.debug:
+        msg: "{{ item.name }}: Installing {{ errata_count }} updates (kernel, openssl, glibc, systemd...)"
+      loop: "{{ servers }}"
+      loop_control:
+        pause: 3
+      changed_when: true
+
+    - name: Rebooting servers for kernel update
+      ansible.builtin.debug:
+        msg: "{{ item.name }}: Rebooting... ({{ current_kernel }} -> {{ target_kernel }})"
+      loop: "{{ servers }}"
+      loop_control:
+        pause: 2
+      changed_when: true
+      vars:
+        current_kernel: "{{ item.current_kernel }}"
+
+    - name: Waiting for servers to come back online
+      ansible.builtin.pause:
+        seconds: 5
+
+    - name: Verifying post-patch state
+      ansible.builtin.debug:
+        msg: "{{ item.name }}: Online | Kernel: {{ target_kernel }} | Services: running | Health: OK"
+      loop: "{{ servers }}"
+      loop_control:
+        pause: 1
+
+    - name: Patching complete
+      ansible.builtin.debug:
+        msg:
+          - "============================================"
+          - "  PATCH MAINTENANCE COMPLETE"
+          - "  Servers patched: {{ servers | length }}/{{ servers | length }}"
+          - "  Errata applied: {{ errata_count }}"
+          - "  Kernel: {{ target_kernel }}"
+          - "  Failures: 0"
+          - "  Rollback snapshots retained for 7 days"
+          - "============================================"

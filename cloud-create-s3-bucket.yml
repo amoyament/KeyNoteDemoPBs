@@ -1,0 +1,74 @@
+---
+- name: Create Compliant S3 Bucket
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    bucket_name: "acme-data-{{ 999999 | random }}"
+    region: "us-east-1"
+    environment_tag: "production"
+
+  tasks:
+    - name: Validating bucket naming convention
+      ansible.builtin.debug:
+        msg: "Bucket name '{{ bucket_name }}' complies with naming policy"
+      changed_when: true
+
+    - name: Creating S3 bucket
+      ansible.builtin.debug:
+        msg: "Creating s3://{{ bucket_name }} in {{ region }}..."
+      changed_when: true
+
+    - name: Configuring server-side encryption (AES-256)
+      ansible.builtin.debug:
+        msg: "Encryption: SSE-S3 (AES-256) enabled for {{ bucket_name }}"
+      changed_when: true
+
+    - name: Enabling bucket versioning
+      ansible.builtin.debug:
+        msg: "Versioning: Enabled"
+      changed_when: true
+
+    - name: Blocking public access
+      ansible.builtin.debug:
+        msg:
+          - "BlockPublicAcls: true"
+          - "IgnorePublicAcls: true"
+          - "BlockPublicPolicy: true"
+          - "RestrictPublicBuckets: true"
+      changed_when: true
+
+    - name: Configuring lifecycle policy
+      ansible.builtin.debug:
+        msg:
+          - "Lifecycle rule: 'archive-after-90-days'"
+          - "  Transition to Glacier after 90 days"
+          - "  Delete after 365 days"
+      changed_when: true
+
+    - name: Applying resource tags
+      ansible.builtin.debug:
+        msg:
+          - "Tags applied:"
+          - "  Environment: {{ environment_tag }}"
+          - "  ManagedBy: ansible-automation"
+          - "  CostCenter: IT-OPS-4200"
+          - "  Compliance: SOC2"
+
+    - name: Enabling access logging
+      ansible.builtin.debug:
+        msg: "Access logs will be written to s3://acme-access-logs/{{ bucket_name }}/"
+      changed_when: true
+
+    - name: S3 bucket creation complete
+      ansible.builtin.debug:
+        msg:
+          - "============================================"
+          - "  S3 BUCKET CREATED SUCCESSFULLY"
+          - "  Name: {{ bucket_name }}"
+          - "  Region: {{ region }}"
+          - "  Encryption: AES-256"
+          - "  Public Access: Blocked"
+          - "  Versioning: Enabled"
+          - "  ARN: arn:aws:s3:::{{ bucket_name }}"
+          - "============================================"

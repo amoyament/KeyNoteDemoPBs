@@ -1,0 +1,78 @@
+---
+- name: Request Azure Resource Group
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    rg_name: "rg-acme-{{ 9999 | random }}"
+    location: "eastus"
+    subscription: "ACME-Production"
+
+  tasks:
+    - name: Authenticating with Azure
+      ansible.builtin.debug:
+        msg: "Authenticating via service principal to subscription '{{ subscription }}'..."
+      changed_when: true
+
+    - name: Validating resource group name
+      ansible.builtin.debug:
+        msg: "Resource group '{{ rg_name }}' complies with naming convention"
+
+    - name: Checking subscription limits
+      ansible.builtin.debug:
+        msg: "Resource groups: 42/980 in use. Capacity available."
+
+    - name: Creating resource group
+      ansible.builtin.debug:
+        msg: "Creating {{ rg_name }} in {{ location }}..."
+      changed_when: true
+
+    - name: Waiting for provisioning
+      ansible.builtin.pause:
+        seconds: 3
+
+    - name: Applying resource tags
+      ansible.builtin.debug:
+        msg:
+          - "Tags applied:"
+          - "  Environment: production"
+          - "  ManagedBy: ansible-automation"
+          - "  CostCenter: IT-OPS-4200"
+          - "  Owner: cloud-team"
+      changed_when: true
+
+    - name: Configuring RBAC assignments
+      ansible.builtin.debug:
+        msg:
+          - "RBAC configured:"
+          - "  cloud-admins@example.com: Contributor"
+          - "  devops-team@example.com: Reader"
+          - "  security-audit@example.com: Security Reader"
+      changed_when: true
+
+    - name: Applying Azure Policy
+      ansible.builtin.debug:
+        msg:
+          - "Policies assigned:"
+          - "  'Allowed locations' - eastus, eastus2, westus2"
+          - "  'Require tag on resources' - CostCenter required"
+          - "  'Deny public IP creation' - enforced"
+      changed_when: true
+
+    - name: Setting up budget alert
+      ansible.builtin.debug:
+        msg: "Budget alert: $5,000/month threshold, notify cloud-admins@example.com at 80%"
+      changed_when: true
+
+    - name: Resource group provisioning complete
+      ansible.builtin.debug:
+        msg:
+          - "============================================"
+          - "  AZURE RESOURCE GROUP CREATED"
+          - "  Name: {{ rg_name }}"
+          - "  Location: {{ location }}"
+          - "  Subscription: {{ subscription }}"
+          - "  RBAC: 3 role assignments"
+          - "  Policies: 3 assigned"
+          - "  Resource ID: /subscriptions/abc-123/resourceGroups/{{ rg_name }}"
+          - "============================================"

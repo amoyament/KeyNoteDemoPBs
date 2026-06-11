@@ -1,0 +1,66 @@
+---
+- name: Branch WiFi Reset
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    branch_id: "{{ branch_id | default('Branch 142') }}"
+    access_points:
+      - { name: "AP-LOBBY-01", model: "Aruba AP-535", status: "degraded", clients: 12 }
+      - { name: "AP-FLOOR2-01", model: "Aruba AP-535", status: "degraded", clients: 8 }
+      - { name: "AP-FLOOR2-02", model: "Aruba AP-535", status: "offline", clients: 0 }
+      - { name: "AP-FLOOR3-01", model: "Aruba AP-535", status: "degraded", clients: 15 }
+      - { name: "AP-CONF-01", model: "Aruba AP-515", status: "ok", clients: 3 }
+
+  tasks:
+    - name: Connecting to wireless controller
+      ansible.builtin.debug:
+        msg: "Authenticating with wlc.{{ branch_id | lower | replace(' ', '') }}.example.com..."
+      changed_when: true
+
+    - name: Scanning access points at {{ branch_id }}
+      ansible.builtin.debug:
+        msg: "{{ item.name }} ({{ item.model }}): status={{ item.status }}, connected_clients={{ item.clients }}"
+      loop: "{{ access_points }}"
+      loop_control:
+        pause: 1
+
+    - name: Identifying degraded and offline APs
+      ansible.builtin.debug:
+        msg: "Found {{ access_points | selectattr('status', 'ne', 'ok') | list | length }} APs requiring reset"
+      changed_when: true
+
+    - name: Gracefully disconnecting wireless clients
+      ansible.builtin.debug:
+        msg: "Sending deauth frames to {{ access_points | map(attribute='clients') | sum }} connected clients..."
+      changed_when: true
+
+    - name: Waiting for client disconnection
+      ansible.builtin.pause:
+        seconds: 3
+
+    - name: Resetting access points
+      ansible.builtin.debug:
+        msg: "{{ item.name }}: Sending reset command... rebooting"
+      loop: "{{ access_points | selectattr('status', 'ne', 'ok') | list }}"
+      loop_control:
+        pause: 2
+      changed_when: true
+
+    - name: Waiting for APs to rejoin controller
+      ansible.builtin.pause:
+        seconds: 5
+
+    - name: Verifying AP status post-reset
+      ansible.builtin.debug:
+        msg: "{{ item.name }}: online, broadcasting SSID 'ACME-Corp' and 'ACME-Guest'"
+      loop: "{{ access_points }}"
+      loop_control:
+        pause: 1
+
+    - name: WiFi reset complete
+      ansible.builtin.debug:
+        msg:
+          - "WiFi reset complete for {{ branch_id }}"
+          - "APs reset: {{ access_points | selectattr('status', 'ne', 'ok') | list | length }}"
+          - "All access points operational"
