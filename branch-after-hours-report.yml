@@ -4,6 +4,7 @@
   connection: local
   gather_facts: false
   vars:
+    branch_id: "Branch 123"
     report_date: "{{ '%Y-%m-%d' | strftime }}"
     branches:
       - { id: "Branch 101", location: "Chicago, IL", entries: 3 }
@@ -29,6 +30,7 @@
         msg:
           - "============================================"
           - "  AFTER HOURS ACCESS REPORT"
+          - "  Requested by: {{ branch_id }}"
           - "  Report Date: {{ report_date }}"
           - "  Operating Hours: 06:00 - 18:00 EST"
           - "============================================"
