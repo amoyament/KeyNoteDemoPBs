@@ -4,7 +4,7 @@
   connection: local
   gather_facts: false
   vars:
-    branch_id: "{{ branch_id | default('Branch 142') }}"
+    branch_id: "Branch 142"
     access_points:
       - { name: "AP-LOBBY-01", model: "Aruba AP-535", status: "degraded", clients: 12 }
       - { name: "AP-FLOOR2-01", model: "Aruba AP-535", status: "degraded", clients: 8 }

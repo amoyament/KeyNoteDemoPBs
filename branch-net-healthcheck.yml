@@ -4,7 +4,7 @@
   connection: local
   gather_facts: false
   vars:
-    branch_id: "{{ branch_id | default('Branch 142') }}"
+    branch_id: "Branch 142"
     checks:
       - { name: "DNS Resolution", status: "✓ Passed" }
       - { name: "DHCP Services", status: "✓ Passed" }
