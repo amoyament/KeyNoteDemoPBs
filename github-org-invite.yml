@@ -1,0 +1,86 @@
+---
+- name: Self-Service GitHub Org Join
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    github_org: "Automation-Portal-ACME"
+    github_api: "https://api.github.com"
+    github_token: "{{ lookup('env', 'GITHUB_TOKEN') }}"
+
+  tasks:
+    - name: Validating GitHub username
+      ansible.builtin.uri:
+        url: "{{ github_api }}/users/{{ github_username }}"
+        method: GET
+        headers:
+          Accept: "application/vnd.github+json"
+        status_code: [200, 404]
+      register: user_check
+
+    - name: GitHub user not found
+      ansible.builtin.fail:
+        msg: "GitHub user '{{ github_username }}' does not exist. Please check the username and try again."
+      when: user_check.status == 404
+
+    - name: Checking current org membership
+      ansible.builtin.uri:
+        url: "{{ github_api }}/orgs/{{ github_org }}/members/{{ github_username }}"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ github_token }}"
+          Accept: "application/vnd.github+json"
+        status_code: [204, 302, 404]
+      register: membership_check
+
+    - name: User is already a member
+      ansible.builtin.debug:
+        msg: "{{ github_username }} is already a member of {{ github_org }}. No action needed."
+      when: membership_check.status == 204
+
+    - name: Checking for pending invitations
+      ansible.builtin.uri:
+        url: "{{ github_api }}/orgs/{{ github_org }}/invitations"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ github_token }}"
+          Accept: "application/vnd.github+json"
+      register: pending_invites
+      when: membership_check.status != 204
+
+    - name: User already has a pending invitation
+      ansible.builtin.debug:
+        msg: "{{ github_username }} already has a pending invitation to {{ github_org }}. Please check your email or GitHub notifications to accept it."
+      when:
+        - membership_check.status != 204
+        - pending_invites.json | selectattr('login', 'equalto', github_username) | list | length > 0
+
+    - name: Looking up GitHub user ID
+      ansible.builtin.set_fact:
+        github_user_id: "{{ user_check.json.id }}"
+      when:
+        - membership_check.status != 204
+        - pending_invites.json | selectattr('login', 'equalto', github_username) | list | length == 0
+
+    - name: Sending organization invitation
+      ansible.builtin.uri:
+        url: "{{ github_api }}/orgs/{{ github_org }}/invitations"
+        method: POST
+        headers:
+          Authorization: "Bearer {{ github_token }}"
+          Accept: "application/vnd.github+json"
+        body_format: json
+        body:
+          invitee_id: "{{ github_user_id | int }}"
+          role: "direct_member"
+        status_code: 201
+      register: invite_result
+      when: github_user_id is defined
+
+    - name: Invitation sent successfully
+      ansible.builtin.debug:
+        msg:
+          - "Invitation sent to {{ github_username }} for {{ github_org }}"
+          - "Role: member (read-only access to repositories)"
+          - "The user should check their email or GitHub notifications to accept"
+      when: invite_result is not skipped and invite_result.status == 201
