@@ -57,7 +57,7 @@
 
     - name: Looking up GitHub user ID
       ansible.builtin.set_fact:
-        github_user_id: "{{ user_check.json.id }}"
+        github_user_id: "{{ user_check.json.id | int }}"
       when:
         - membership_check.status != 204
         - pending_invites.json | selectattr('login', 'equalto', github_username) | list | length == 0
@@ -69,10 +69,8 @@
         headers:
           Authorization: "Bearer {{ github_token }}"
           Accept: "application/vnd.github+json"
+        body: '{"invitee_id": {{ github_user_id | int }}, "role": "direct_member"}'
         body_format: json
-        body:
-          invitee_id: "{{ github_user_id | int }}"
-          role: "direct_member"
         status_code: 201
       register: invite_result
       when: github_user_id is defined
