@@ -1,0 +1,186 @@
+---
+- name: EE Cleanup - Remove old demo EEs
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    github_org: "Automation-Portal-ACME"
+    github_api: "https://api.github.com"
+    github_token: "{{ lookup('env', 'GITHUB_TOKEN') }}"
+    pah_host: "https://52.21.70.135"
+    pah_username: "admin"
+    pah_password: "{{ pah_admin_password }}"
+    portal_host: "https://100.58.32.132:8443"
+    portal_token: "{{ portal_api_token }}"
+    max_age_days: "{{ cleanup_age_days | default(14) }}"
+    protected_repos:
+      - ".github"
+    protected_ee_images:
+      - "ee-minimal-rhel9"
+      - "ee-supported-rhel9"
+      - "de-supported-rhel9"
+      - "platform-ops/compliance-ee"
+
+  tasks:
+    - name: Get all repos in the org
+      ansible.builtin.uri:
+        url: "{{ github_api }}/orgs/{{ github_org }}/repos?per_page=100&sort=created&direction=asc"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ github_token }}"
+          Accept: "application/vnd.github+json"
+        status_code: 200
+      register: org_repos
+
+    - name: Calculate cutoff date
+      ansible.builtin.set_fact:
+        cutoff_date: "{{ '%Y-%m-%dT%H:%M:%SZ' | strftime(now().timestamp() | int - (max_age_days | int * 86400)) }}"
+
+    - name: Display cleanup parameters
+      ansible.builtin.debug:
+        msg:
+          - "Org: {{ github_org }}"
+          - "Max age: {{ max_age_days }} days"
+          - "Cutoff date: {{ cutoff_date }}"
+          - "Total repos found: {{ org_repos.json | length }}"
+          - "Protected repos: {{ protected_repos | join(', ') }}"
+
+    - name: Identify repos to delete
+      ansible.builtin.set_fact:
+        repos_to_delete: >-
+          {{ org_repos.json
+             | selectattr('created_at', 'lt', cutoff_date)
+             | rejectattr('name', 'in', protected_repos)
+             | list }}
+
+    - name: Display repos to delete
+      ansible.builtin.debug:
+        msg: "Will delete {{ repos_to_delete | length }} repos: {{ repos_to_delete | map(attribute='name') | list | join(', ') }}"
+
+    - name: Skip if nothing to clean
+      ansible.builtin.meta: end_play
+      when: repos_to_delete | length == 0
+
+    - name: Build list of repo names to delete
+      ansible.builtin.set_fact:
+        deleted_repo_names: "{{ repos_to_delete | map(attribute='name') | list }}"
+
+    # --- Phase 1: Delete GitHub repos ---
+
+    - name: Delete GitHub repos
+      ansible.builtin.uri:
+        url: "{{ github_api }}/repos/{{ github_org }}/{{ item }}"
+        method: DELETE
+        headers:
+          Authorization: "Bearer {{ github_token }}"
+          Accept: "application/vnd.github+json"
+        status_code: [204, 404]
+      loop: "{{ deleted_repo_names }}"
+      register: github_delete_results
+
+    - name: Report GitHub deletions
+      ansible.builtin.debug:
+        msg: "{{ item.item }}: {{ 'deleted' if item.status == 204 else 'already gone' }}"
+      loop: "{{ github_delete_results.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    # --- Phase 2: Delete PAH images ---
+
+    - name: Get all EE images from PAH
+      ansible.builtin.uri:
+        url: "{{ pah_host }}/api/galaxy/v3/plugin/execution-environments/repositories/?limit=100"
+        method: GET
+        user: "{{ pah_username }}"
+        password: "{{ pah_password }}"
+        force_basic_auth: true
+        validate_certs: false
+        status_code: 200
+      register: pah_images
+
+    - name: Identify PAH images to delete
+      ansible.builtin.set_fact:
+        images_to_delete: >-
+          {{ pah_images.json.data
+             | rejectattr('name', 'in', protected_ee_images)
+             | selectattr('name', 'in', deleted_repo_names)
+             | map(attribute='name')
+             | list }}
+
+    - name: Display PAH images to delete
+      ansible.builtin.debug:
+        msg: "Will delete {{ images_to_delete | length }} PAH images: {{ images_to_delete | join(', ') }}"
+
+    - name: Delete EE images from PAH
+      ansible.builtin.uri:
+        url: "{{ pah_host }}/api/galaxy/v3/plugin/execution-environments/repositories/{{ item | urlencode }}/"
+        method: DELETE
+        user: "{{ pah_username }}"
+        password: "{{ pah_password }}"
+        force_basic_auth: true
+        validate_certs: false
+        status_code: [202, 204, 404]
+      loop: "{{ images_to_delete }}"
+      register: pah_delete_results
+
+    - name: Report PAH deletions
+      ansible.builtin.debug:
+        msg: "{{ item.item }}: {{ 'deleted' if item.status in [202, 204] else 'already gone' }}"
+      loop: "{{ pah_delete_results.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+      when: images_to_delete | length > 0
+
+    # --- Phase 3: Unregister from portal catalog ---
+
+    - name: Get all catalog locations from portal
+      ansible.builtin.uri:
+        url: "{{ portal_host }}/api/catalog/locations"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ portal_token }}"
+        validate_certs: false
+        status_code: 200
+      register: catalog_locations
+
+    - name: Flatten catalog locations
+      ansible.builtin.set_fact:
+        all_locations: "{{ catalog_locations.json | map(attribute='data') | list }}"
+
+    - name: Find matching catalog locations
+      ansible.builtin.set_fact:
+        matching_locations: []
+
+    - name: Match catalog locations to deleted repos
+      ansible.builtin.set_fact:
+        matching_locations: >-
+          {{ matching_locations +
+             (all_locations | selectattr('target', 'search', '/' ~ item ~ '/') | list) }}
+      loop: "{{ deleted_repo_names }}"
+
+    - name: Display catalog locations to delete
+      ansible.builtin.debug:
+        msg: "Will remove {{ matching_locations | length }} catalog locations"
+
+    - name: Unregister catalog locations
+      ansible.builtin.uri:
+        url: "{{ portal_host }}/api/catalog/locations/{{ item.id }}"
+        method: DELETE
+        headers:
+          Authorization: "Bearer {{ portal_token }}"
+        validate_certs: false
+        status_code: [200, 204, 404]
+      loop: "{{ matching_locations }}"
+      loop_control:
+        label: "{{ item.target }}"
+      when: matching_locations | length > 0
+
+    # --- Summary ---
+
+    - name: Cleanup summary
+      ansible.builtin.debug:
+        msg:
+          - "Cleanup complete!"
+          - "GitHub repos deleted: {{ deleted_repo_names | length }}"
+          - "PAH images deleted: {{ images_to_delete | length }}"
+          - "Catalog locations removed: {{ matching_locations | length }}"
