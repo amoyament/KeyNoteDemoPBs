@@ -15,11 +15,19 @@
     max_age_days: "{{ cleanup_age_days | default(14) }}"
     protected_repos:
       - ".github"
+      - "acme-network-ops-ee"
+      - "acme-cloud-provisioning-ee"
+      - "acme-linux-patching-ee"
+      - "acme-security-scanning-ee"
     protected_ee_images:
       - "ee-minimal-rhel9"
       - "ee-supported-rhel9"
       - "de-supported-rhel9"
       - "platform-ops/compliance-ee"
+      - "acme-network-ops-ee"
+      - "acme-cloud-provisioning-ee"
+      - "acme-linux-patching-ee"
+      - "acme-security-scanning-ee"
 
   tasks:
     - name: Get all repos in the org
