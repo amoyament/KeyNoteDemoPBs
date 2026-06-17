@@ -10,7 +10,7 @@
     pah_host: "https://52.21.70.135"
     pah_username: "admin"
     pah_password: "{{ pah_admin_password }}"
-    portal_host: "https://100.58.32.132:8443"
+    portal_host: "https://100.58.32.132"
     portal_token: "{{ portal_api_token }}"
     max_age_days: "{{ cleanup_age_days | default(14) }}"
     protected_repos:
