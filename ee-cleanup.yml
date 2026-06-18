@@ -19,6 +19,9 @@
       - "acme-cloud-provisioning-ee"
       - "acme-linux-patching-ee"
       - "acme-security-scanning-ee"
+      - "acme-security-policies"
+      - "acme-cloud-utils"
+      - "acme-network-base"
     protected_ee_images:
       - "ee-minimal-rhel9"
       - "ee-supported-rhel9"
