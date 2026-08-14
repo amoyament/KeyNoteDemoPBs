@@ -56,25 +56,34 @@
           - "Total repos found: {{ org_repos.json | length }}"
           - "Protected repos: {{ protected_repos | join(', ') }}"
 
-    - name: Identify repos to delete
+    - name: Build list of old repos
       ansible.builtin.set_fact:
-        repos_to_delete: >-
+        old_repos: >-
           {{ org_repos.json
              | selectattr('created_at', 'lt', cutoff_date)
-             | rejectattr('name', 'in', protected_repos)
+             | map(attribute='name')
              | list }}
+
+    - name: Filter out protected repos
+      ansible.builtin.set_fact:
+        repos_to_delete: "{{ old_repos | difference(protected_repos) }}"
 
     - name: Display repos to delete
       ansible.builtin.debug:
-        msg: "Will delete {{ repos_to_delete | length }} repos: {{ repos_to_delete | map(attribute='name') | list | join(', ') }}"
+        msg: "Will delete {{ repos_to_delete | length }} repos: {{ repos_to_delete | join(', ') }}"
+
+    - name: Display protected repos that were spared
+      ansible.builtin.debug:
+        msg: "Protected (kept): {{ old_repos | intersect(protected_repos) | join(', ') }}"
+      when: (old_repos | intersect(protected_repos)) | length > 0
 
     - name: Skip if nothing to clean
       ansible.builtin.meta: end_play
       when: repos_to_delete | length == 0
 
-    - name: Build list of repo names to delete
+    - name: Set deleted repo names
       ansible.builtin.set_fact:
-        deleted_repo_names: "{{ repos_to_delete | map(attribute='name') | list }}"
+        deleted_repo_names: "{{ repos_to_delete }}"
 
     # --- Phase 1: Delete GitHub repos ---
 
